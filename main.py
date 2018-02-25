@@ -28,13 +28,14 @@ def load_vgg(sess, vgg_path):
     #   Use tf.saved_model.loader.load to load the model and weights
 
     vgg_tag = 'vgg16'
-    tf.saved_model.loader.load(sess, [vgg_tag], vgg_path)
 
     vgg_input_tensor_name = 'image_input:0'
     vgg_keep_prob_tensor_name = 'keep_prob:0'
     vgg_layer3_out_tensor_name = 'layer3_out:0'
     vgg_layer4_out_tensor_name = 'layer4_out:0'
     vgg_layer7_out_tensor_name = 'layer7_out:0'
+
+    tf.saved_model.loader.load(sess, [vgg_tag], vgg_path)
 
     input_tensor = sess.graph.get_tensor_by_name(vgg_input_tensor_name)
     keep_prob_tensor = sess.graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
@@ -109,8 +110,8 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param learning_rate: TF Placeholder for learning rate
     """
 
-    merged = tf.summary.merge_all()
-    train_writer = tf.summary.FileWriter('run/log', sess.graph)
+#    merged = tf.summary.merge_all()
+#    train_writer = tf.summary.FileWriter('run/log', sess.graph)
     tf.global_variables_initializer().run()
 
 
@@ -121,8 +122,8 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
             _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image: image, correct_label: label, keep_prob: 0.5, learning_rate: 0.01})
 
             if step % 10 == 0:
-                m = sess.run(merged)
-                train_writer.add_summary(m, step)
+#                m = sess.run(merged)
+#                train_writer.add_summary(m, step)
                 print("cross_entropy at step {} : {}".format(step, loss))
 
 
@@ -166,6 +167,12 @@ def run():
 
         logits, adam_optimizer, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
 
+        # to save the trained model (preparation)
+        saver = tf.train.Saver()
+
+        # # restore a saved model here:
+        # saver.restore(sess, './runs/trained_model.ckpt')
+
         train_nn(sess, epochs, batch_size, get_batches_fn, adam_optimizer, cross_entropy_loss, input_image,
              correct_label, keep_prob, learning_rate)
 
@@ -174,7 +181,8 @@ def run():
         helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
 
         # OPTIONAL: Apply the trained model to a video
-
+        # # save model
+        saver.save(sess, './runs/trained_model.ckpt')
 
 if __name__ == '__main__':
     run()
