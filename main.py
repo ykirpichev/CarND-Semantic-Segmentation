@@ -121,7 +121,9 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
 
 #    tf.summary.scalar('cross_entropy', cross_entropy_loss)
 
-#    reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+    reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+
+    cross_entropy_loss = cross_entropy_loss + 0.001 * tf.reduce_sum(reg_losses)
 
     adam_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy_loss) # + tf.reduce_sum(reg_losses))
 
@@ -147,7 +149,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
 #    merged = tf.summary.merge_all()
 #    train_writer = tf.summary.FileWriter('run/log', sess.graph)
-    tf.global_variables_initializer().run()
+#    tf.global_variables_initializer().run()
 
 
     step = 0
@@ -156,7 +158,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
         for image, label in get_batches_fn(batch_size):
             step += 1
-            _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image: image, correct_label: label, keep_prob: 0.5, learning_rate: 0.01})
+            _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image: image, correct_label: label, keep_prob: 0.5, learning_rate: 0.0005})
 
             if step % 10 == 0:
 #                m = sess.run(merged)
@@ -171,7 +173,7 @@ tests.test_train_nn(train_nn)
 
 def run():
     num_classes = 2
-    epochs = 50
+    epochs = 20
     batch_size = 16
     image_shape = (160, 576)
     data_dir = './data'
@@ -204,11 +206,12 @@ def run():
 
         logits, adam_optimizer, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
 
+        sess.run(tf.global_variables_initializer())
         # to save the trained model (preparation)
         saver = tf.train.Saver()
 
         # # restore a saved model here:
-        # saver.restore(sess, './runs/trained_model.ckpt')
+        saver.restore(sess, tf.train.latest_checkpoint('./runs/'))
 
         train_nn(sess, epochs, batch_size, get_batches_fn, adam_optimizer, cross_entropy_loss, input_image,
              correct_label, keep_prob, learning_rate)
