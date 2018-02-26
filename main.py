@@ -1,4 +1,6 @@
 import os.path
+
+import scipy
 import tensorflow as tf
 import helper
 import warnings
@@ -224,5 +226,57 @@ def run():
         # # save model
         saver.save(sess, './runs/trained_model.ckpt')
 
+
+def restore_graph(sess):
+    sess.run(tf.global_variables_initializer())
+    # to save the trained model (preparation)
+    # saver = tf.train.Saver()
+    saver = tf.train.import_meta_graph('./runs/trained_model.ckpt.meta')
+    # # restore a saved model here:
+    saver.restore(sess, tf.train.latest_checkpoint('./runs/'))
+
+    graph = sess.graph
+    keep_prob = graph.get_tensor_by_name('keep_prob:0')
+    input_image = graph.get_tensor_by_name('image_input:0')
+#    for op in tf.get_default_graph().get_operations():
+#        print(str(op.name))
+    logits = graph.get_tensor_by_name('Reshape:0')
+    return keep_prob, logits, input_image
+
+
+def process_video():
+    with tf.Session() as sess:
+        keep_prob, logits, input_image = restore_graph(sess)
+        image_shape = (160, 576)
+
+        import numpy as np
+
+        def process_image(image):
+            image = scipy.misc.imresize(image, image_shape)
+
+            im_softmax = sess.run(
+                [tf.nn.softmax(logits)],
+                {keep_prob: 1.0, input_image: [image]})
+            im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
+            segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
+            mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
+            mask = scipy.misc.toimage(mask, mode="RGBA")
+            street_im = scipy.misc.toimage(image)
+            street_im.paste(mask, box=None, mask=mask)
+            return np.array(street_im)
+
+        from moviepy.editor import VideoFileClip
+        from PIL import Image
+        clip = VideoFileClip('driving.mp4').subclip(0, 5)
+
+        def pipeline(img):
+            image = Image.fromarray(img)
+            return process_image(np.asarray(image, dtype=np.uint8))
+
+        new_clip = clip.fl_image(pipeline)
+        new_clip.write_videofile('result.mp4')
+
+
 if __name__ == '__main__':
     run()
+#    process_video()
