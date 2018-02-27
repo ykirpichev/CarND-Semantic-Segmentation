@@ -302,12 +302,13 @@ flags.DEFINE_integer(name='batch_size',
 
 
 def main(args):
-    if flags.FLAGS.mode is 'train':
+    if flags.FLAGS.mode == 'train':
         train()
-    elif flags.FLAGS.mode is 'test':
+    elif flags.FLAGS.mode == 'test':
         test()
     else:
         print(flags.FLAGS.main_module_help())
 
 if __name__ == '__main__':
     tf.app.run()
+
