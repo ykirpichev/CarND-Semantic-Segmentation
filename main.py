@@ -26,9 +26,6 @@ def load_vgg(sess, vgg_path):
     :param vgg_path: Path to vgg folder, containing "variables/" and "saved_model.pb"
     :return: Tuple of Tensors from VGG model (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
     """
-    # TODO: Implement function
-    #   Use tf.saved_model.loader.load to load the model and weights
-
     vgg_tag = 'vgg16'
 
     vgg_input_tensor_name = 'image_input:0'
@@ -121,8 +118,6 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
 
     cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=correct_label))
 
-#    tf.summary.scalar('cross_entropy', cross_entropy_loss)
-
     reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
     cross_entropy_loss = cross_entropy_loss + 0.001 * tf.reduce_sum(reg_losses)
@@ -148,13 +143,8 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
-
-#    merged = tf.summary.merge_all()
-#    train_writer = tf.summary.FileWriter('run/log', sess.graph)
-#    tf.global_variables_initializer().run()
-
-
     step = 0
+
     for epoch in range(epochs):
         print("epoch {}".format(epoch))
 
@@ -163,29 +153,26 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
             _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image: image, correct_label: label, keep_prob: 0.5, learning_rate: 0.0005})
 
             if step % 10 == 0:
-#                m = sess.run(merged)
-#                train_writer.add_summary(m, step)
                 print("cross_entropy at step {} : {}".format(step, loss))
-
-
 
 
 tests.test_train_nn(train_nn)
 
 
-def run():
+def train():
     num_classes = 2
-    epochs = 20
-    batch_size = 16
     image_shape = (160, 576)
-    data_dir = './data'
-    runs_dir = './runs'
+    epochs = flags.FLAGS.epochs
+    batch_size = flags.FLAGS.batch_size
+    data_dir = flags.FLAGS.data_path
+    runs_dir = flags.FLAGS.run_path
+
     tests.test_for_kitti_dataset(data_dir)
 
     # Download pretrained vgg model
     helper.maybe_download_pretrained_vgg(data_dir)
 
-    # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
+    # TODO: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
@@ -195,88 +182,132 @@ def run():
         # Create function to get batches
         get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
 
-        # OPTIONAL: Augment Images for better results
+        # TODO: Augment Images for better results
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
-        # TODO: Build NN using load_vgg, layers, and optimize function
+        # Build NN using load_vgg, layers, and optimize function
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
         layer_output = layers(layer3_out, layer4_out, layer7_out, num_classes)
 
-        # TODO: Train NN using the train_nn function
+        # Train NN using the train_nn function
         correct_label = tf.placeholder(tf.float32, [None, None, None, num_classes])
         learning_rate = tf.placeholder(tf.float32)
 
         logits, adam_optimizer, cross_entropy_loss = optimize(layer_output, correct_label, learning_rate, num_classes)
 
         sess.run(tf.global_variables_initializer())
+
         # to save the trained model (preparation)
         saver = tf.train.Saver()
 
-        # # restore a saved model here:
-        saver.restore(sess, tf.train.latest_checkpoint('./runs/'))
+        if flags.FLAGS.use_snapshot:
+            # restore a saved model here:
+            saver.restore(sess, tf.train.latest_checkpoint('./runs/'))
 
         train_nn(sess, epochs, batch_size, get_batches_fn, adam_optimizer, cross_entropy_loss, input_image,
              correct_label, keep_prob, learning_rate)
 
-        # TODO: Save inference data using helper.save_inference_samples
-        #  helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        saver.save(sess, 'trained_model.ckpt', global_step=1000, write_meta_graph=False)
+
         helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
 
-        # OPTIONAL: Apply the trained model to a video
-        # # save model
-        saver.save(sess, './runs/trained_model.ckpt')
 
-
-def restore_graph(sess):
+def restore_graph(sess, runs_dir):
     sess.run(tf.global_variables_initializer())
-    # to save the trained model (preparation)
-    # saver = tf.train.Saver()
-    saver = tf.train.import_meta_graph('./runs/trained_model.ckpt.meta')
-    # # restore a saved model here:
-    saver.restore(sess, tf.train.latest_checkpoint('./runs/'))
+
+    #restore a saved model here:
+    saver = tf.train.import_meta_graph(os.path.join(runs_dir, 'trained_model.ckpt.meta'))
+    saver.restore(sess, tf.train.latest_checkpoint(runs_dir))
 
     graph = sess.graph
     keep_prob = graph.get_tensor_by_name('keep_prob:0')
     input_image = graph.get_tensor_by_name('image_input:0')
-#    for op in tf.get_default_graph().get_operations():
-#        print(str(op.name))
+
+    if flags.FLAGS.verbose:
+        for op in tf.get_default_graph().get_operations():
+            print(str(op.name))
+
     logits = graph.get_tensor_by_name('Reshape:0')
     return keep_prob, logits, input_image
 
 
-def process_video():
+def test():
+    data_dir = flags.FLAGS.data_path
+    runs_dir = flags.FLAGS.run_path
+
     with tf.Session() as sess:
-        keep_prob, logits, input_image = restore_graph(sess)
+        keep_prob, logits, input_image = restore_graph(sess, runs_dir)
         image_shape = (160, 576)
 
         import numpy as np
 
         def process_image(image):
+            image = np.asarray(Image.fromarray(image), dtype=np.uint8)
             image = scipy.misc.imresize(image, image_shape)
 
             im_softmax = sess.run(
                 [tf.nn.softmax(logits)],
                 {keep_prob: 1.0, input_image: [image]})
+
             im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
             segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
+
             mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
             mask = scipy.misc.toimage(mask, mode="RGBA")
+
             street_im = scipy.misc.toimage(image)
             street_im.paste(mask, box=None, mask=mask)
+
             return np.array(street_im)
 
         from moviepy.editor import VideoFileClip
         from PIL import Image
-        clip = VideoFileClip('driving.mp4').subclip(0, 5)
 
-        def pipeline(img):
-            image = Image.fromarray(img)
-            return process_image(np.asarray(image, dtype=np.uint8))
+        # clip = VideoFileClip('driving.mp4').subclip(0, 5)
+        clip = VideoFileClip(os.path.join(data_dir, 'driving.mp4'))
 
-        new_clip = clip.fl_image(pipeline)
-        new_clip.write_videofile('result.mp4')
+        new_clip = clip.fl_image(process_image)
 
+        new_clip.write_videofile(os.path.join(runs_dir, 'result.mp4'))
+
+
+flags = tf.app.flags
+flags.DEFINE_enum(name='mode',
+                  default='train',
+                  enum_values=['train', 'test', 'dry-run'],
+                  help='run mode: default is train, use test in order to process sample video file')
+flags.DEFINE_bool(name='use_snapshot',
+                  default=False,
+                  help='Whether to load saved snapshot when run in training mode')
+
+flags.DEFINE_bool(name='verbose',
+                  default=False,
+                  help='Enable verbose mode')
+
+flags.DEFINE_string(name='data_path',
+                    default='./data',
+                    help='Data path to load vgg model and train dataset')
+
+flags.DEFINE_string(name='run_path',
+                    default='./runs',
+                    help='Path to store output data')
+
+flags.DEFINE_integer(name='epochs',
+                     default=20,
+                     help='Number of epochs for training')
+
+flags.DEFINE_integer(name='batch_size',
+                     default=16,
+                     help='Batch size used for training')
+
+
+def main(args):
+    if flags.FLAGS.mode is 'train':
+        train()
+    elif flags.FLAGS.mode is 'test':
+        test()
+    else:
+        print(flags.FLAGS.main_module_help())
 
 if __name__ == '__main__':
-    run()
-#    process_video()
+    tf.app.run()
