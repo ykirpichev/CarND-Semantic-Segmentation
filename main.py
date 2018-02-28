@@ -202,12 +202,12 @@ def train():
 
         if flags.FLAGS.use_snapshot:
             # restore a saved model here:
-            saver.restore(sess, tf.train.latest_checkpoint('./runs/'))
+            saver.restore(sess, tf.train.latest_checkpoint(runs_dir))
 
         train_nn(sess, epochs, batch_size, get_batches_fn, adam_optimizer, cross_entropy_loss, input_image,
              correct_label, keep_prob, learning_rate)
 
-        saver.save(sess, 'trained_model.ckpt', global_step=1000, write_meta_graph=False)
+        saver.save(sess, os.path.join(runs_dir, 'trained_model.ckpt'), global_step=1000)
 
         helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
 
