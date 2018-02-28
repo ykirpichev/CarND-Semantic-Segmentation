@@ -47,7 +47,7 @@ The following hyperparameters were finally used:
 ### Results
 The model was trained and tested using [Kitti Road dataset](http://www.cvlibs.net/datasets/kitti/eval_road.php).
 Data augmentation was not used.
-Here are some results showing overal performance:
+Here are some results showing overall performance:
 <br>
 <img src="images/um_000000.png" width="576" height="160">
 ![um_000000.png](runs/1519813461.1072783/um_000000.png)
