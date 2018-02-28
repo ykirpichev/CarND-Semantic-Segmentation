@@ -48,13 +48,14 @@ The following hyperparameters were finally used:
 The model was trained and tested using [Kitti Road dataset](http://www.cvlibs.net/datasets/kitti/eval_road.php).
 Data augmentation was not used.
 Here are some results showing overal performance:
-![um_000000.png](images/um_000000.png)
+<br>
+<img src="images/um_000000.png" width="576" height="160">
 ![um_000000.png](runs/1519813461.1072783/um_000000.png)
-![um_000050.png](images/um_000050.png)
+<img src="images/um_000050.png" width="576" height="160">
 ![um_000050.png](runs/1519813461.1072783/um_000050.png)
-![umm_000050.png](images/umm_000050.png)
+<img src="images/umm_000050.png" width="576" height="160">
 ![umm_000050.png](runs/1519813461.1072783/umm_000050.png)
-![umm_000090.png](images/umm_000090.png)
+<img src="images/umm_000090.png" width="576" height="160">
 ![umm_000090.png](runs/1519813461.1072783/umm_000090.png)
 
 Also, model was run on sample [video](data/driving.mp4).
