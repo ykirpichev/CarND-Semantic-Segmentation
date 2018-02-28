@@ -64,6 +64,8 @@ Performance is not good enough.
 In order to improve performance more data and augmented data should be used for training.
 Also, may be further hyperparameter turning will also improve quality.
 
+---
+
 ### Setup
 ##### Frameworks and Packages
 Make sure you have the following is installed:
